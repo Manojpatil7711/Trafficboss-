@@ -1,6 +1,6 @@
 # TrafficBoss
 
-TrafficBoss is being rebuilt as a mobile-friendly web performance testing workspace.
+TrafficBoss is a mobile-friendly web performance testing workspace. The app opens directly to its dashboard; no login page or account system is planned.
 
 ## Current foundation (v0.1)
 - Responsive dashboard for desktop and Android-sized screens
@@ -20,9 +20,9 @@ The supplied Windows ZIP contains a compiled `Mass Site Visitor.exe`, browser dr
 Open `index.html` in a modern browser. To execute generated scripts, install k6 separately and run the script only in an authorized test environment.
 
 ## Roadmap
-- Backend/API and persistent projects
-- Authentication and workspace roles
+- Persistent projects and settings without user accounts
 - Test-runner integration with strict target allowlists and rate limits
 - Real run history, logs, and downloadable reports
 - URL groups, test profiles, and environment management
+- Browser/device test configuration
 - Audit trail and usage controls
