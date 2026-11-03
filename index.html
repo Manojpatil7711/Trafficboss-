@@ -16,14 +16,20 @@
 <section class="grid"><article class="stat"><small>Saved test plans</small><strong id="plans">0</strong><em>In this browser session</em></article><article class="stat"><small>Active test runs</small><strong>—</strong><em>Runner not connected</em></article><article class="stat"><small>Requests measured</small><strong>—</strong><em>No fabricated metrics</em></article><article class="stat"><small>Target status</small><strong style="font-size:19px">Not checked</strong><em>Run tests from your own runner</em></article></section>
 <div class="layout"><section class="panel" id="builder"><h2>Build a test plan</h2><div class="muted">Create a conservative k6 load-test script for an authorized target.</div>
 <div class="field"><label for="url">Target URL (HTTPS recommended)</label><input id="url" type="url" placeholder="https://your-staging-site.example" autocomplete="url"></div>
+<div class="two">
+<div class="field"><label for="deviceProfile">Device QA profile</label><select id="deviceProfile"><option value="Desktop PC · Chrome">Desktop PC · Chrome</option><option value="Laptop · Chrome">Laptop · Chrome</option><option value="Android · Chrome">Android · Chrome</option><option value="iPhone · Safari">iPhone · Safari</option><option value="iPad · Safari">iPad · Safari</option></select></div>
+<div class="field"><label for="trafficSource">Attribution test label</label><select id="trafficSource"><option value="direct">Direct</option><option value="google">Google campaign</option><option value="facebook">Facebook campaign</option><option value="instagram">Instagram campaign</option><option value="email">Email campaign</option><option value="referral">Referral campaign</option><option value="custom">Custom test source</option></select></div>
+</div>
+<div class="field"><label for="customSource">Custom source name (optional)</label><input id="customSource" type="text" maxlength="40" placeholder="e.g. partner-newsletter"></div>
+<div class="notice">Device and source selections are saved as QA test metadata. They do not yet emulate a real device/browser or generate genuine visits from those platforms. Browser emulation and click execution require the separate authorized Playwright runner.</div>
 <div class="two"><div class="field"><label for="vus">Virtual users (max 20)</label><input id="vus" type="number" min="1" max="20" value="5"></div><div class="field"><label for="duration">Duration</label><select id="duration"><option value="30s">30 seconds</option><option value="1m">1 minute</option><option value="2m">2 minutes</option><option value="5m">5 minutes</option></select></div></div>
 <div class="two"><div class="field"><label for="ramp">Ramp-up</label><select id="ramp"><option value="10s">10 seconds</option><option value="20s">20 seconds</option><option value="30s">30 seconds</option></select></div><div class="field"><label for="threshold">p95 response threshold</label><select id="threshold"><option value="500">500 ms</option><option value="1000">1 second</option><option value="2000">2 seconds</option></select></div></div>
 <div class="notice">Use only on systems you own or have written permission to test. This builder deliberately limits test intensity; it does not create fake visitors, manipulate analytics, or target third-party websites.</div>
 <div class="actions"><button class="primary" id="generate">Generate test script</button><button class="secondary" id="save">Save plan</button></div>
 </section>
-<aside class="panel"><h2>Test readiness</h2><div class="muted">Checks before a test run</div><table class="table"><tr><td>Target URL</td><td id="checkurl"><span class="tag">Pending</span></td></tr><tr><td>Intensity limit</td><td><span style="color:var(--green)">Enforced · 20 VUs</span></td></tr><tr><td>Authorization</td><td><span class="tag">Owner confirmation required</span></td></tr><tr><td>Execution engine</td><td><span class="tag">Not connected</span></td></tr></table><div class="bar"><i id="progress"></i></div><div class="muted" id="readiness">Enter a valid HTTPS URL to prepare your test plan.</div><p class="footnote">The app currently generates a k6 script only. It does not send traffic or report simulated results.</p></aside></div>
+<aside class="panel"><h2>Test readiness</h2><div class="muted">Checks before a test run</div><table class="table"><tr><td>Target URL</td><td id="checkurl"><span class="tag">Pending</span></td></tr><tr><td>Intensity limit</td><td><span style="color:var(--green)">Enforced · 20 VUs</span></td></tr><tr><td>Authorization</td><td><span class="tag">Owner confirmation required</span></td></tr><tr><td>Execution engine</td><td><span class="tag">Not connected</span></td></tr></table><div class="bar"><i id="progress"></i></div><div class="muted" id="readiness">Enter a valid HTTPS URL to prepare your test plan.</div><p class="footnote">This page currently generates k6 HTTP scripts and stores device/source QA labels. It does not perform browser emulation or send traffic.</p></aside></div>
 <section class="panel" id="output" style="margin-top:17px"><h2>Generated k6 script</h2><div class="muted">Review the script, then run it manually in your authorized test environment.</div><pre class="code" id="code">// Your test script will appear here.</pre><div class="actions"><button class="secondary" id="copy">Copy script</button><button class="secondary" id="download">Download .js</button></div></section>
-<section class="panel" id="history" style="margin-top:17px"><h2>Saved plans</h2><div class="muted">Plans are stored locally in this page session only.</div><table class="table"><thead><tr><th>Target</th><th>Load</th><th>Duration</th><th>Status</th></tr></thead><tbody id="historyRows"><tr><td colspan="4" class="muted">No saved plans yet.</td></tr></tbody></table></section>
+<section class="panel" id="history" style="margin-top:17px"><h2>Saved plans</h2><div class="muted">Plans are stored locally in this page session only.</div><table class="table"><thead><tr><th>Target</th><th>Load</th><th>Duration</th><th>Device</th><th>Source label</th><th>Status</th></tr></thead><tbody id="historyRows"><tr><td colspan="4" class="muted">No saved plans yet.</td></tr></tbody></table></section>
 
 <section class="panel" id="reports" style="margin-top:17px">
   <h2>Real test reports</h2>
@@ -54,7 +60,7 @@
 </main></div>
 <script>
 const $=id=>document.getElementById(id);let script='',plans=[];
-function config(){const url=$('url').value.trim(),vus=Math.max(1,Math.min(20,Number($('vus').value)||1)),duration=$('duration').value,ramp=$('ramp').value,threshold=Number($('threshold').value);return{url,vus,duration,ramp,threshold}}
+function config(){const url=$('url').value.trim(),vus=Math.max(1,Math.min(20,Number($('vus').value)||1)),duration=$('duration').value,ramp=$('ramp').value,threshold=Number($('threshold').value),deviceProfile=$('deviceProfile').value,trafficSource=$('trafficSource').value,customSource=$('customSource').value.trim().replace(/[^a-zA-Z0-9_-]/g,'').slice(0,40);return{url,vus,duration,ramp,threshold,deviceProfile,trafficSource,customSource}}
 function validURL(s){try{const u=new URL(s);return u.protocol==='https:'||u.protocol==='http:'}catch{return false}}
 function refresh(){const c=config(),ok=validURL(c.url);$('checkurl').innerHTML=ok?'<span style="color:var(--green)">Valid format</span>':'<span class="tag">Pending</span>';$('progress').style.width=ok?'35%':'0%';$('readiness').textContent=ok?'URL format looks valid. Confirm ownership and run from your test environment.':'Enter a valid HTTP or HTTPS URL to prepare your test plan.'}
 $('url').addEventListener('input',refresh);
@@ -96,7 +102,7 @@ refresh();
   function drawPlans(){
     $('plans').textContent=plans.length;
     if(!plans.length){rows.innerHTML='<tr><td colspan="4" class="muted">No saved plans yet.</td></tr>';return}
-    rows.innerHTML=plans.map((p,i)=>'<tr><td>'+escapeHTML(p.url)+'</td><td>'+Number(p.vus)+' VUs</td><td>'+escapeHTML(p.duration)+'</td><td><span class="tag">Saved</span> <button class="secondary" data-load="'+i+'" style="padding:4px 7px;margin-left:4px">Load</button> <button class="secondary" data-delete="'+i+'" style="padding:4px 7px">Delete</button></td></tr>').join('');
+    rows.innerHTML=plans.map((p,i)=>'<tr><td>'+escapeHTML(p.url)+'</td><td>'+Number(p.vus)+' VUs</td><td>'+escapeHTML(p.duration)+'</td><td>'+escapeHTML(p.deviceProfile||'Not set')+'</td><td>'+escapeHTML(p.customSource||p.trafficSource||'Not set')+'</td><td><span class="tag">Saved</span> <button class="secondary" data-load="'+i+'" style="padding:4px 7px;margin-left:4px">Load</button> <button class="secondary" data-delete="'+i+'" style="padding:4px 7px">Delete</button></td></tr>').join('');
   }
   try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');if(Array.isArray(saved))plans=saved.filter(p=>p&&typeof p.url==='string'&&Number.isFinite(Number(p.vus)))}catch(e){plans=[]}
   drawPlans();
@@ -109,7 +115,7 @@ refresh();
   };
   rows.addEventListener('click',e=>{
     const load=e.target.closest('[data-load]'),del=e.target.closest('[data-delete]');
-    if(load){const p=plans[Number(load.dataset.load)];if(!p)return;$('url').value=p.url;$('vus').value=p.vus;$('duration').value=p.duration;$('ramp').value=p.ramp;$('threshold').value=p.threshold;refresh();$('builder').scrollIntoView({behavior:'smooth'});}
+    if(load){const p=plans[Number(load.dataset.load)];if(!p)return;$('url').value=p.url;$('vus').value=p.vus;$('duration').value=p.duration;$('ramp').value=p.ramp;$('threshold').value=p.threshold;$('deviceProfile').value=p.deviceProfile||'Desktop PC · Chrome';$('trafficSource').value=p.trafficSource||'direct';$('customSource').value=p.customSource||'';refresh();$('builder').scrollIntoView({behavior:'smooth'});}
     if(del){const i=Number(del.dataset.delete);if(!Number.isInteger(i))return;plans.splice(i,1);persist();drawPlans();}
   });
   $('exportPlans').onclick=()=>{
