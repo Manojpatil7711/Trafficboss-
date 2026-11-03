@@ -11,7 +11,7 @@ TrafficBoss is a mobile-friendly web performance testing workspace. It opens dir
 - Load, delete, and export saved-plan backups as JSON
 - Import actual k6 summary JSON and view measured request count, average response time, p95 response time, and failed-request rate
 - Export imported measurements as CSV
-- Offline app-shell support through a service worker
+- Optional live-runner connection panel: health check, start/refresh/stop real k6 runs against the local authorized runner; bearer token is kept in the current browser tab only\n- Offline app-shell support through a service worker
 - Baseline security response headers for Cloudflare Pages
 - No fabricated traffic, metrics, or test results
 
