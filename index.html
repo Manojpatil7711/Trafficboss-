@@ -39,6 +39,18 @@
   <div class="actions"><button class="secondary" id="exportReport" disabled>Export report CSV</button><button class="secondary" id="exportPlans">Export saved plans</button></div>
 </section>
 <p class="footnote">TrafficBoss is an independent project. No connection to the original Windows executable has been established. Never run load tests without authorization.</p>
+
+<section class="panel" id="advanced" style="margin-top:17px">
+  <h2>Advanced multi-page journey</h2>
+  <div class="muted">Test a sequence of pages on a website you own or are authorized to test. This generates real HTTP checks, not browser clicks or fake visitors.</div>
+  <div class="field"><label for="journeyUrls">Page URLs — one per line, same authorized host</label><textarea id="journeyUrls" rows="4" placeholder="https://your-site.example/\nhttps://your-site.example/pricing\nhttps://your-site.example/contact" style="width:100%;background:#091321;border:1px solid #2a3a52;border-radius:9px;color:white;padding:11px 12px;font:inherit"></textarea></div>
+  <div class="two">
+    <div class="field"><label for="journeyPause">Pause between journey cycles</label><select id="journeyPause"><option value="10">10 seconds</option><option value="15">15 seconds</option><option value="30">30 seconds</option><option value="60">60 seconds</option></select></div>
+    <div class="field"><label for="journeyChecks">HTTP checks</label><select id="journeyChecks"><option value="basic">Status + response time</option><option value="strict">Status + response time + content type</option></select></div>
+  </div>
+  <div class="actions"><button class="primary" id="generateJourney">Generate advanced script</button></div>
+  <p class="footnote">The 10-second pause is a pacing interval inside each virtual user's test journey. It does not create a new visitor every 10 seconds. Geographic execution (USA/UK) and real browser click automation require separately deployed cloud workers; this static Pages site does not currently have those workers connected.</p>
+</section>
 </main></div>
 <script>
 const $=id=>document.getElementById(id);let script='',plans=[];
@@ -131,6 +143,58 @@ refresh();
     const a=document.createElement('a'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'});a.href=URL.createObjectURL(blob);a.download='trafficboss-measured-report.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
   };
   if('serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('/sw.js').catch(()=>{});
+})();
+</script>
+
+
+<script>
+(function(){
+  const btn=document.getElementById('generateJourney');
+  if(!btn)return;
+  btn.addEventListener('click',()=>{
+    const raw=document.getElementById('journeyUrls').value.split(/\\r?\\n/).map(x=>x.trim()).filter(Boolean);
+    const pause=Number(document.getElementById('journeyPause').value);
+    const strict=document.getElementById('journeyChecks').value==='strict';
+    if(!raw.length){alert('Add at least one page URL.');return}
+    let urls=[];
+    try{
+      urls=raw.map(x=>new URL(x));
+      const host=urls[0].host;
+      if(urls.some(u=>!['https:','http:'].includes(u.protocol)||u.host!==host)){alert('For safety, use valid HTTP/HTTPS URLs from one host only.');return}
+    }catch(e){alert('One or more URLs are invalid.');return}
+    const list=urls.map(u=>JSON.stringify(u.href));
+    const checks=strict
+      ? "'status is 2xx/3xx': r => r.status >= 200 && r.status < 400, 'content type exists': r => !!r.headers['Content-Type']"
+      : "'status is 2xx/3xx': r => r.status >= 200 && r.status < 400";
+    script=`import http from 'k6/http';
+import { check, sleep } from 'k6';
+
+const pages = [${list.join(', ')}];
+
+export const options = {
+  stages: [
+    { duration: '${config().ramp}', target: ${config().vus} },
+    { duration: '${config().duration}', target: ${config().vus} },
+    { duration: '10s', target: 0 },
+  ],
+  thresholds: {
+    http_req_failed: ['rate<0.01'],
+    http_req_duration: ['p(95)<${config().threshold}'],
+  },
+};
+
+export default function () {
+  for (const url of pages) {
+    const response = http.get(url, { timeout: '10s' });
+    check(response, { ${checks} });
+  }
+  sleep(${pause});
+}`;
+    document.getElementById('code').textContent=script;
+    document.getElementById('readiness').textContent='Advanced multi-page HTTP test script generated. No requests have been sent.';
+    document.getElementById('progress').style.width='60%';
+    document.getElementById('output').scrollIntoView({behavior:'smooth'});
+  });
 })();
 </script>
 
