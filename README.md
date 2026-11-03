@@ -16,7 +16,7 @@ TrafficBoss is a mobile-friendly web performance testing workspace. It opens dir
 - No fabricated traffic, metrics, or test results
 
 ## Deployment on Cloudflare Pages
-Connect this GitHub repository to Cloudflare Pages. Use the repository root as the project root, leave the build command empty, and set the build output directory to `/` (root). The project is static HTML and does not require a build step. Every commit to the connected branch can trigger a new deployment.
+Connect this GitHub repository to Cloudflare Pages. Use the repository root as the project root, leave the build command empty, and set the build output directory to `.` (repository root). The project is static HTML and does not require a build step. Every commit to the connected branch can trigger a new deployment.
 
 ## Run locally
 Open `index.html` in a modern browser. Offline support requires serving the site over HTTPS or localhost. To execute generated scripts, install k6 separately and run the script only in an authorized test environment.
