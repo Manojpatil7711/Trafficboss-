@@ -80,7 +80,7 @@
       if (!runnerReady) throw new Error('Connect to a ready runner first.');
       const cfg = typeof config === 'function' ? config() : null;
       if (!cfg || !validURL(cfg.url)) throw new Error('Enter a valid target URL in Test Builder.');
-      const payload = {urls:[cfg.url],vus:cfg.vus,duration_seconds:Math.min(300,Math.max(10,/^(\\d+)(s|m)$/.test(cfg.duration)?Number(cfg.duration.match(/^(\\d+)(s|m)$/)[1])*(cfg.duration.endsWith('m')?60:1):30)),pause_seconds:2};
+      const payload = {urls:[cfg.url],vus:cfg.vus,duration_seconds:Math.min(300,Math.max(10,/^(\d+)(s|m)$/.test(cfg.duration)?Number(cfg.duration.match(/^(\d+)(s|m)$/)[1])*(cfg.duration.endsWith('m')?60:1):30)),pause_seconds:2};
       const result = await api('/runs',{method:'POST',body:JSON.stringify(payload)});
       activeRun = result.id;
       $('tb-run-state').textContent=result.state||'running';
