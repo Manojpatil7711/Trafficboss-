@@ -24,6 +24,20 @@
 <aside class="panel"><h2>Test readiness</h2><div class="muted">Checks before a test run</div><table class="table"><tr><td>Target URL</td><td id="checkurl"><span class="tag">Pending</span></td></tr><tr><td>Intensity limit</td><td><span style="color:var(--green)">Enforced · 20 VUs</span></td></tr><tr><td>Authorization</td><td><span class="tag">Owner confirmation required</span></td></tr><tr><td>Execution engine</td><td><span class="tag">Not connected</span></td></tr></table><div class="bar"><i id="progress"></i></div><div class="muted" id="readiness">Enter a valid HTTPS URL to prepare your test plan.</div><p class="footnote">The app currently generates a k6 script only. It does not send traffic or report simulated results.</p></aside></div>
 <section class="panel" id="output" style="margin-top:17px"><h2>Generated k6 script</h2><div class="muted">Review the script, then run it manually in your authorized test environment.</div><pre class="code" id="code">// Your test script will appear here.</pre><div class="actions"><button class="secondary" id="copy">Copy script</button><button class="secondary" id="download">Download .js</button></div></section>
 <section class="panel" id="history" style="margin-top:17px"><h2>Saved plans</h2><div class="muted">Plans are stored locally in this page session only.</div><table class="table"><thead><tr><th>Target</th><th>Load</th><th>Duration</th><th>Status</th></tr></thead><tbody id="historyRows"><tr><td colspan="4" class="muted">No saved plans yet.</td></tr></tbody></table></section>
+
+<section class="panel" id="reports" style="margin-top:17px">
+  <h2>Real test reports</h2>
+  <div class="muted">Import an actual k6 summary JSON file to review measured results. No sample or simulated metrics are shown.</div>
+  <div class="field"><label for="reportFile">k6 summary JSON (maximum 5 MB)</label><input id="reportFile" type="file" accept=".json,application/json"></div>
+  <div class="grid" style="grid-template-columns:repeat(4,minmax(0,1fr));margin-top:14px">
+    <article class="stat"><small>Requests</small><strong id="rRequests">—</strong><em>Measured total</em></article>
+    <article class="stat"><small>Average response</small><strong id="rAvg">—</strong><em>Milliseconds</em></article>
+    <article class="stat"><small>p95 response</small><strong id="rP95">—</strong><em>Milliseconds</em></article>
+    <article class="stat"><small>Failed requests</small><strong id="rFailed">—</strong><em>Measured rate</em></article>
+  </div>
+  <div class="muted" id="reportStatus" style="margin-top:12px">No report imported.</div>
+  <div class="actions"><button class="secondary" id="exportReport" disabled>Export report CSV</button><button class="secondary" id="exportPlans">Export saved plans</button></div>
+</section>
 <p class="footnote">TrafficBoss is an independent project. No connection to the original Windows executable has been established. Never run load tests without authorization.</p>
 </main></div>
 <script>
@@ -60,4 +74,64 @@ function escapeHTML(s){return s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','
 $('copy').onclick=async()=>{if(!script){alert('Generate a script first.');return}try{await navigator.clipboard.writeText(script);$('copy').textContent='Copied'}catch{alert('Clipboard unavailable. Select and copy the script manually.')}};
 $('download').onclick=()=>{if(!script){alert('Generate a script first.');return}const a=document.createElement('a'),b=new Blob([script],{type:'text/javascript'});a.href=URL.createObjectURL(b);a.download='trafficboss-k6-test.js';a.click();URL.revokeObjectURL(a.href)};
 refresh();
-</script></body></html>
+</script>
+<script>
+/* TrafficBoss enhancements: durable local plans, real k6 report import, offline shell. */
+(function(){
+  const STORAGE_KEY='trafficboss.savedPlans.v1';
+  const rows=$('historyRows');
+  function persist(){try{localStorage.setItem(STORAGE_KEY,JSON.stringify(plans));return true}catch(e){$('readiness').textContent='Browser storage is unavailable or full. Export your plans to keep a backup.';return false}}
+  function drawPlans(){
+    $('plans').textContent=plans.length;
+    if(!plans.length){rows.innerHTML='<tr><td colspan="4" class="muted">No saved plans yet.</td></tr>';return}
+    rows.innerHTML=plans.map((p,i)=>'<tr><td>'+escapeHTML(p.url)+'</td><td>'+Number(p.vus)+' VUs</td><td>'+escapeHTML(p.duration)+'</td><td><span class="tag">Saved</span> <button class="secondary" data-load="'+i+'" style="padding:4px 7px;margin-left:4px">Load</button> <button class="secondary" data-delete="'+i+'" style="padding:4px 7px">Delete</button></td></tr>').join('');
+  }
+  try{const saved=JSON.parse(localStorage.getItem(STORAGE_KEY)||'[]');if(Array.isArray(saved))plans=saved.filter(p=>p&&typeof p.url==='string'&&Number.isFinite(Number(p.vus)))}catch(e){plans=[]}
+  drawPlans();
+  $('save').onclick=()=>{
+    const c=config();
+    if(!validURL(c.url)){alert('Enter a valid HTTP or HTTPS target URL first.');return}
+    plans.unshift({...c,id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random()),savedAt:new Date().toISOString()});
+    plans=plans.slice(0,100);persist();drawPlans();
+    $('readiness').textContent='Plan saved in this browser. Export a backup if you clear browser data.';
+  };
+  rows.addEventListener('click',e=>{
+    const load=e.target.closest('[data-load]'),del=e.target.closest('[data-delete]');
+    if(load){const p=plans[Number(load.dataset.load)];if(!p)return;$('url').value=p.url;$('vus').value=p.vus;$('duration').value=p.duration;$('ramp').value=p.ramp;$('threshold').value=p.threshold;refresh();$('builder').scrollIntoView({behavior:'smooth'});}
+    if(del){const i=Number(del.dataset.delete);if(!Number.isInteger(i))return;plans.splice(i,1);persist();drawPlans();}
+  });
+  $('exportPlans').onclick=()=>{
+    const blob=new Blob([JSON.stringify({app:'TrafficBoss',version:1,exportedAt:new Date().toISOString(),plans},null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='trafficboss-plans-backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  };
+  let latestReport=null;
+  $('reportFile').addEventListener('change',async e=>{
+    const f=e.target.files&&e.target.files[0];if(!f)return;
+    if(f.size>5*1024*1024){$('reportStatus').textContent='File too large. Choose a JSON file under 5 MB.';return}
+    try{
+      const raw=JSON.parse(await f.text()),m=raw.metrics||raw.data&&raw.data.metrics;
+      if(!m||typeof m!=='object')throw new Error('No k6 metrics object found. Export the result using k6 handleSummary().');
+      const values=k=>m[k]&&m[k].values||{};
+      const req=values('http_reqs'),dur=values('http_req_duration'),fail=values('http_req_failed');
+      const data={file:f.name,requests:Number(req.count||0),avg:Number(dur.avg||0),p95:Number(dur['p(95)']||0),failedRate:Number(fail.rate||0),checks:values('checks'),importedAt:new Date().toISOString()};
+      if(!Number.isFinite(data.requests)||!Number.isFinite(data.avg)||!Number.isFinite(data.p95))throw new Error('The report does not contain usable HTTP request metrics.');
+      latestReport=data;
+      $('rRequests').textContent=data.requests.toLocaleString();
+      $('rAvg').textContent=data.avg.toFixed(1);
+      $('rP95').textContent=data.p95.toFixed(1);
+      $('rFailed').textContent=(data.failedRate*100).toFixed(2)+'%';
+      $('reportStatus').textContent='Imported actual k6 report: '+f.name+' · '+new Date().toLocaleString();
+      $('exportReport').disabled=false;
+    }catch(err){latestReport=null;$('exportReport').disabled=true;$('reportStatus').textContent='Could not read report: '+err.message}
+  });
+  $('exportReport').onclick=()=>{
+    if(!latestReport)return;
+    const r=latestReport,lines=[['Metric','Measured value'],['Source file',r.file],['Requests',r.requests],['Average response (ms)',r.avg],['p95 response (ms)',r.p95],['Failed request rate',r.failedRate],['Imported at',r.importedAt]];
+    const csv=lines.map(row=>row.map(v=>'"'+String(v).replace(/"/g,'""')+'"').join(',')).join('\r\n');
+    const a=document.createElement('a'),blob=new Blob([csv],{type:'text/csv;charset=utf-8'});a.href=URL.createObjectURL(blob);a.download='trafficboss-measured-report.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  };
+  if('serviceWorker' in navigator && location.protocol!=='file:')navigator.serviceWorker.register('/sw.js').catch(()=>{});
+})();
+</script>
+
+</body></html>
