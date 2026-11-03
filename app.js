@@ -59,9 +59,30 @@
       result.className='tb-result '+(response.ok?'ok':'bad');
       result.textContent='Request completed. '+(response.ok?'Website returned a successful HTTP response.':'Website returned a non-success HTTP response.')+' Final URL: '+response.url;
     }catch(error){
-      status.textContent='Unavailable';time.textContent=(performance.now()-started).toFixed(0)+' ms';size.textContent='—';
-      result.className='tb-result bad';
-      result.textContent=error.name==='AbortError'?'Browser request timed out after 12 seconds.': 'Browser could not read the response. The target may block CORS, have a network/TLS issue, or be unreachable. The browser cannot distinguish these reliably, so this is not a confirmed downtime result.';
+      if(error.name==='AbortError'){
+        status.textContent='Timed out';time.textContent=(performance.now()-started).toFixed(0)+' ms';size.textContent='—';
+        result.className='tb-result bad';
+        result.textContent='No response within 12 seconds. The site may be slow, unreachable, or blocking the request.';
+      } else {
+        /* Retry in no-cors mode: an opaque response confirms the browser request completed,
+           but deliberately does not expose HTTP status, headers, or body. */
+        try{
+          const fallbackController=new AbortController();
+          const fallbackTimer=setTimeout(()=>fallbackController.abort(),12000);
+          const fallbackStart=performance.now();
+          await fetch(target.href,{method:'GET',mode:'no-cors',cache:'no-store',signal:fallbackController.signal});
+          clearTimeout(fallbackTimer);
+          status.textContent='Opaque response';
+          time.textContent=(performance.now()-fallbackStart).toFixed(0)+' ms';
+          size.textContent='Hidden by browser';
+          result.className='tb-result ok';
+          result.textContent='Browser request completed. The website is reachable from this browser, but its HTTP status and response content are hidden by cross-origin security (CORS). This is a connectivity check, not a verified HTTP 200 result.';
+        }catch(fallbackError){
+          status.textContent='Unconfirmed';time.textContent=(performance.now()-started).toFixed(0)+' ms';size.textContent='—';
+          result.className='tb-result bad';
+          result.textContent='The browser could not complete the request. Possible causes include network/TLS failure, timeout, or site restrictions. This does not conclusively prove the website is down.';
+        }
+      }
     }finally{clearTimeout(timeout);run.disabled=false;run.textContent='Run browser check';}
   });
   $('tb-check-clear').addEventListener('click',()=>{
