@@ -36,10 +36,10 @@
   linkPanel.className='panel tb-browser-check';
   linkPanel.id='tb-link-check';
   linkPanel.innerHTML=`
-    <h2>Auto Link Check · Daily limit 1,000</h2>
+    <h2>Auto Link Check · Daily limit 500</h2>
     <div class="muted">Checks links on a website you own or are authorized to test. Sends one low-impact HEAD request per URL; it does not click ads or create ad interactions.</div>
-    <div class="field"><label for="tb-link-list">Same-website URLs — one per line (maximum 1,000)</label><textarea id="tb-link-list" rows="5" placeholder="https://your-site.example/\nhttps://your-site.example/about" style="width:100%;background:#091321;border:1px solid #2a3a52;border-radius:9px;color:white;padding:11px 12px;font:inherit"></textarea></div>
-    <div class="tb-kpis"><div class="tb-kpi"><small>Checks used today</small><b id="tb-link-used">0 / 1,000</b></div><div class="tb-kpi"><small>Remaining today</small><b id="tb-link-left">1,000</b></div><div class="tb-kpi"><small>Current batch</small><b id="tb-link-progress">0 / 0</b></div></div>
+    <div class="field"><label for="tb-link-list">Same-website URLs — one per line (maximum 500)</label><textarea id="tb-link-list" rows="5" placeholder="https://your-site.example/\nhttps://your-site.example/about" style="width:100%;background:#091321;border:1px solid #2a3a52;border-radius:9px;color:white;padding:11px 12px;font:inherit"></textarea></div>
+    <div class="tb-kpis"><div class="tb-kpi"><small>Checks used today</small><b id="tb-link-used">0 / 500</b></div><div class="tb-kpi"><small>Remaining today</small><b id="tb-link-left">500</b></div><div class="tb-kpi"><small>Current batch</small><b id="tb-link-progress">0 / 0</b></div></div>
     <div class="actions"><button class="primary" id="tb-link-start">Start link checks</button><button class="secondary" id="tb-link-stop">Stop</button><button class="secondary" id="tb-link-clear">Clear results</button></div>
     <div class="tb-result" id="tb-link-result" role="status">Ready. Checks run sequentially with a one-second pause.</div>
     <div class="code" id="tb-link-log" style="max-height:220px">No checks run yet.</div>
@@ -48,22 +48,22 @@
   if(history) history.parentNode.insertBefore(linkPanel,history); else main.appendChild(linkPanel);
   const linkKey='trafficboss.linkChecks.'+new Date().toISOString().slice(0,10);
   let linkUsed=0,linkStopped=false;
-  try{linkUsed=Math.min(1000,Math.max(0,Number(localStorage.getItem(linkKey))||0));}catch(e){}
+  try{linkUsed=Math.min(500,Math.max(0,Number(localStorage.getItem(linkKey))||0));}catch(e){}
   const linkUsedEl=$('tb-link-used'),linkLeftEl=$('tb-link-left'),linkProgressEl=$('tb-link-progress'),linkResult=$('tb-link-result'),linkLog=$('tb-link-log');
-  function updateLinkCount(){linkUsedEl.textContent=linkUsed.toLocaleString()+' / 1,000';linkLeftEl.textContent=(1000-linkUsed).toLocaleString();}
+  function updateLinkCount(){linkUsedEl.textContent=linkUsed.toLocaleString()+' / 500';linkLeftEl.textContent=(500-linkUsed).toLocaleString();}
   updateLinkCount();
   $('tb-link-stop').addEventListener('click',()=>{linkStopped=true;linkResult.textContent='Stop requested. The current request will finish or time out.';});
   $('tb-link-clear').addEventListener('click',()=>{linkLog.textContent='No checks run yet.';linkProgressEl.textContent='0 / 0';linkResult.textContent='Results cleared. Daily usage counter is unchanged.';});
   $('tb-link-start').addEventListener('click',async()=>{
     const lines=$('tb-link-list').value.split(/\\r?\\n/).map(v=>v.trim()).filter(Boolean);
     if(!lines.length){linkResult.textContent='Add at least one URL.';return;}
-    if(linkUsed>=1000){linkResult.textContent='Daily limit reached. You can run more checks after the daily counter resets.';return;}
-    if(lines.length>1000){linkResult.textContent='Maximum 1,000 URLs per batch.';return;}
+    if(linkUsed>=500){linkResult.textContent='Daily limit reached. You can run more checks after the daily counter resets.';return;}
+    if(lines.length>500){linkResult.textContent='Maximum 500 URLs per batch.';return;}
     let urls;
     try{urls=lines.map(v=>new URL(v));}catch(e){linkResult.textContent='One or more URLs are invalid.';return;}
     const origin=urls[0].origin;
     if(urls.some(u=>!['https:','http:'].includes(u.protocol)||u.origin!==origin)){linkResult.textContent='For safety, all URLs must use the same HTTP/HTTPS website origin.';return;}
-    const remaining=1000-linkUsed;
+    const remaining=500-linkUsed;
     if(urls.length>remaining){linkResult.textContent='Only '+remaining+' checks remain today. Reduce this batch.';return;}
     const start=$('tb-link-start');start.disabled=true;linkStopped=false;
     const logs=[];
@@ -79,7 +79,7 @@
       linkUsed++;try{localStorage.setItem(linkKey,String(linkUsed));}catch(e){}
       updateLinkCount();logs.push(line);linkLog.textContent=logs.join('\\n');linkProgressEl.textContent=(i+1)+' / '+urls.length;
       linkResult.textContent='Processed '+(i+1)+' of '+urls.length+(linkStopped?' · stopped':'')+'.';
-      if(i<urls.length-1&&!linkStopped)await new Promise(resolve=>setTimeout(resolve,1000));
+      if(i<urls.length-1&&!linkStopped)await new Promise(resolve=>setTimeout(resolve,500));
     }
     linkResult.textContent=linkStopped?'Stopped. '+logs.length+' checks completed.':'Completed '+logs.length+' link checks.';
     start.disabled=false;
